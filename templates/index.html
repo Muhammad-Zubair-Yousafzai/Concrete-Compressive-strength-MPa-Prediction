@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compressive Strength Prediction</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url('/static/images/bg.jpg');
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            color: rgba(0, 0, 0, 0.771);
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 50px;
+            color: #606060;
+        }
+
+        #container {
+            width: 80%;
+            margin: 0 auto;
+            background-color: rgba(0, 0, 0, 0.71);
+            padding: 20px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Center-align the content */
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Center-align the form items */
+            gap: 20px;
+            width: 100%;
+        }
+
+        .form-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            gap: 20px;
+            max-width: 900px; /* Set a max-width to control the form width */
+        }
+
+        .form-group {
+            flex: 1;
+            max-width: 400px; /* Set a maximum width for the form-group */
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #606060;
+            text-align: center;
+        }
+
+        input {
+            width: 100%; /* Make the inputs take up full width of their containers */
+            padding: 8px;
+            border: none;
+            border-bottom: 1px solid #8a8a8a;
+            background-color: transparent;
+            color: #606060;
+            text-align: center; /* Center-align text within inputs */
+        }
+
+        input:focus {
+            outline: none;
+            border-bottom: 1px solid #28a745;
+        }
+
+        #submit-btn {
+            display: block;
+            width: 100%;
+            max-width: 480px;
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        #submit-btn:hover {
+            background-color: #218838;
+        }
+
+        #loader {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        #prediction-result {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 24px;
+            color: #28a745;
+        }
+
+        #input-values {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #e7e4e4;
+            border: 1px solid #272727cd;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #2b2b2b6a;
+            width: 600px; /* Increase width of the container */
+        }
+
+        canvas {
+            width: 600px !important; /* Set canvas width */
+            height: 400px !important; /* Set canvas height */
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div id="container">
+        <h1>Predict Compressive Strength</h1>
+        <form id="prediction-form" method="POST">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="cement">Cement (kg/m³):</label>
+                    <input type="text" id="cement" name="cement" required>
+                </div>
+                <div class="form-group">
+                    <label for="water">Water (kg/m³):</label>
+                    <input type="text" id="water" name="water" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="coarse_aggregate">Coarse Aggregate (kg/m³):</label>
+                    <input type="text" id="coarse_aggregate" name="coarse_aggregate" required>
+                </div>
+                <div class="form-group">
+                    <label for="fine_aggregate">Sand (Fine Aggregate) (kg/m³):</label>
+                    <input type="text" id="fine_aggregate" name="fine_aggregate" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="age_day">Curing Period (days):</label>
+                    <input type="text" id="age_day" name="age_day" required>
+                </div>                
+                <div class="form-group">
+                    <label for="blast_furnace_slag">Blast Furnace Slag (kg/m³):</label>
+                    <input type="text" id="blast_furnace_slag" name="blast_furnace_slag" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="fly_ash">Fly Ash (kg/m³):</label>
+                    <input type="text" id="fly_ash" name="fly_ash" required>
+                </div>
+                <div class="form-group">
+                    <label for="superplasticizer">Superplasticizer (kg/m³):</label>
+                    <input type="text" id="superplasticizer" name="superplasticizer" required>
+                </div>
+            </div>
+            <input type="submit" id="submit-btn" value="Predict">
+        </form>
+        <div id="loader">
+            <img src="/static/images/image1.gif" alt="Loading...">
+        </div>
+        <div id="prediction-result"></div>
+        <div id="input-values">
+            <canvas id="input-values-chart"></canvas>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.getElementById('prediction-form').addEventListener('submit', function(event) {
+        event.preventDefault(); // Prevent the default form submission behavior
+    
+        const form = document.getElementById('prediction-form');
+        const formData = new FormData(form);
+        const loader = document.getElementById('loader');
+        const resultDiv = document.getElementById('prediction-result');
+        const inputValuesDiv = document.getElementById('input-values');
+    
+        // Hide the form and show loader
+        form.style.display = 'none'; 
+        loader.style.display = 'block';
+    
+        fetch('/predict', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            loader.style.display = 'none'; // Hide loader
+            if (data.error) {
+                resultDiv.innerHTML = `<span style="color: red;">Error: ${data.error}</span>`;
+                inputValuesDiv.innerHTML = '';
+            } else {
+                resultDiv.innerHTML = `<h2>Predicted Compressive Strength: ${data.prediction}</h2>`;
+                
+                // Add canvas elements to the DOM if not already present
+                if (!document.getElementById('input-values-chart')) {
+                    inputValuesDiv.innerHTML = `<canvas id="input-values-chart"></canvas>`;
+                }
+
+                // Generate the bar chart for input values
+                const ctxBar = document.getElementById('input-values-chart').getContext('2d');
+                new Chart(ctxBar, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(data.input_values),
+                        datasets: [{
+                            label: 'Input Values',
+                            data: Object.values(data.input_values),
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += context.parsed.y;
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        })
+        .catch(error => {
+            loader.style.display = 'none'; // Hide loader
+            resultDiv.innerHTML = `<span style="color: red;">Error: ${error}</span>`;
+            inputValuesDiv.innerHTML = '';
+        });
+    });
+</script>
+
+</body>
+</html>
